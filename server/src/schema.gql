@@ -1,0 +1,36 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+input LoginDto {
+  email: String!
+  password: String!
+}
+
+type Mutation {
+  login(loginInput: LoginDto!): User!
+  logout: String!
+  refreshToken: String!
+  register(registerInput: RegisterDto!): User!
+  updateImage(id: Float!, image: Upload!): String!
+}
+
+type Query {
+  getUsers: [User!]!
+}
+
+input RegisterDto {
+  email: String!
+  fullname: String!
+  password: String!
+}
+
+"""The `Upload` scalar type represents a file upload."""
+scalar Upload
+
+type User {
+  email: String!
+  fullname: String!
+  id: Float!
+  image: String!
+}
