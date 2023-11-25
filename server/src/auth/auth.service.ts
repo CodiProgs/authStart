@@ -1,21 +1,65 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { LoginDto, RegisterDto } from './dto/auth.dto';
+import * as bcrypt from 'bcrypt'
+import { User } from 'src/user/user.model';
+import { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { Request, Response } from 'express';
-import { PrismaService } from 'src/prisma/prisma.service';
-import { User } from 'src/user/user.model';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
-import { compare, hash } from 'bcrypt';
 
 @Injectable()
 export class AuthService {
     constructor(
-        private readonly prisma: PrismaService,
+        private prisma: PrismaService,
         private readonly jwtService: JwtService,
         private readonly config: ConfigService,
-    ) {}
+    ){}
 
-    async createTokens(user: User, res: Response) {
+    async login(loginDto: LoginDto, res: Response, req: Request){
+        const user = await this.validateUser(loginDto.email, loginDto.password)
+        if(!user) throw new BadRequestException({invalidCredentials: 'Invalid credentials'})
+        return await this.createTokens(user, res)
+    }
+
+    async register(registerDto: RegisterDto, res: Response){
+        const existingUser = await this.prisma.user.findUnique({
+            where: {
+                email: registerDto.email
+            }
+        })
+        if(existingUser) throw new BadRequestException({email: 'Email already taken'})
+
+        const hashedPassword = await bcrypt.hash(registerDto.password, 10)
+        const user = await this.prisma.user.create({
+            data: {
+                email: registerDto.email,
+                password: hashedPassword,
+                fullname: registerDto.fullname
+            }
+        })
+
+        return await this.createTokens(user, res)
+    }
+
+    async logout(res: Response){
+        res.clearCookie('accessToken')
+        res.clearCookie('refreshToken')
+        return 'Success logged out'
+    }
+
+    private async validateUser(email: string, password: string){
+        const user = await this.prisma.user.findUnique({
+            where: {
+                email
+            }
+        })
+        if(user && await bcrypt.compare(password, user.password)){
+            return user
+        }
+        return null
+    }
+
+    private async createTokens(user: User, res: Response){
         const payload = { sub: user.id, username: user.fullname };
         const accessToken = this.jwtService.sign(
             {...payload},
@@ -24,90 +68,65 @@ export class AuthService {
                 expiresIn: '15000sec'
             }
         )
-    
         const refreshToken = this.jwtService.sign(
             payload, {
                 secret: this.config.get<string>('REFRESH_TOKEN_SECRET'),
                 expiresIn: '7d'
             }
         )
-    
+
         res.cookie('accessToken', accessToken, { httpOnly: true })
         res.cookie('refreshToken', refreshToken, { httpOnly: true })
         
         return user 
     }
 
-    async validateUser(loginDto: LoginDto) {
-        const user = await this.prisma.user.findUnique({
-            where: { email: loginDto.email }
-        })
+    async refreshTokens(req: Request, res: Response){
+        const refreshToken = req.cookies['refreshToken']
+        if(!refreshToken) throw new BadRequestException({refresh: 'Refresh token not found'})
 
-        if(user && (await compare(loginDto.password, user.password))) {
-            return user
+        let payload: {
+            sub: number
+            username: string
         }
-        return null
-    }
 
-    async register(registerDto: RegisterDto, response: Response) {
+        try{
+            payload = await this.jwtService.verify(refreshToken, {
+                secret: this.config.get<string>('REFRESH_TOKEN_SECRET')
+            })
+        }catch(error){
+            throw new BadRequestException({refresh: 'Invalid refresh token'})
+        }
 
-        const existingUser = await this.prisma.user.findUnique({
-            where: { email: registerDto.email }
-        })
-        if(existingUser) throw new BadRequestException({email: 'Email already exists'})
-
-        const hashedPassword = await hash(registerDto.password, 10)
-        const user = await this.prisma.user.create({
-            data: {
-                fullname: registerDto.fullname,
-                password: hashedPassword,
-                email: registerDto.email,
+        const user = await this.prisma.user.findUnique({
+            where: {
+                id: payload.sub
             }
         })
-        
-        return this.createTokens(user, response)
-    }
+        if(!user) throw new BadRequestException('User not found')
 
-    async login(loginDto: LoginDto, response: Response) {
-        const user = await this.validateUser(loginDto)
-        if(!user) throw new BadRequestException({invalidCredentials: 'Invalid credentials'})
-
-        return this.createTokens(user, response)
-    } 
-
-    async logout(response: Response) {
-        response.clearCookie('accessToken')
-        response.clearCookie('refreshToken')
-        return 'Success logged out'
-    }
-
-    async refreshToken(req: Request, res: Response): Promise<string> {
-        const refreshToken = req.cookies['refreshToken'];
-        if(!refreshToken) throw new UnauthorizedException('Refresh token not found');
-
-        let payload
-        try {
-            payload = this.jwtService.verify(refreshToken, {
-                secret: this.config.get<string>('REFRESH_TOKEN_SECRET'),
-            })
-        }catch (e) {
-            throw new UnauthorizedException('Invalid refresh token');
-        }
-
-        const userExists = await this.prisma.user.findUnique({
-            where: { id: payload.sub }
-        })
-        if(!userExists) throw new BadRequestException('User not longer exists');
-
-        const expiresIn = 15000
-        const expiration = Math.floor(Date.now() / 1000) + expiresIn
+        const accessExpiresIn = 15000 
+        const accessExpiration = Math.floor(Date.now() / 1000) + accessExpiresIn
         const accessToken = this.jwtService.sign(
-            {...payload, exp: expiration},
+            {...payload, exp: accessExpiration},
             {
                 secret: this.config.get<string>('ACCESS_TOKEN_SECRET'),
             }
         )
-        res.cookie('accessToken', accessToken, { httpOnly: true })
+        const refreshExpiresIn = 7 * 24 * 60 * 60 
+        const refreshExpiration = Math.floor(Date.now() / 1000) + refreshExpiresIn
+
+        const newRefreshToken = this.jwtService.sign(
+            {...payload, exp: refreshExpiration},
+            {
+                secret: this.config.get<string>('REFRESH_TOKEN_SECRET'),
+            }
+        )
+
+        res.cookie('accessToken', accessToken, {httpOnly: true})
+        res.cookie('refreshToken', newRefreshToken, {httpOnly: true})
+
         return accessToken
     }
+
 }

@@ -24,16 +24,15 @@ export class GraphqlAuthGuard implements CanActivate{
             const payload = await this.jwtService.verifyAsync(token, {
                 secret: this.configService.get<string>('ACCESS_TOKEN_SECRET'),
             })
+            
             request['user'] = payload
         }catch (e) {
             throw new UnauthorizedException()
         }
-
         return true
     }
 
     private extractTokenFromCookies(request: Request): string | undefined {
         return request.cookies.accessToken
-        
     }
 }

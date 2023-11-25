@@ -19,16 +19,16 @@ export const useUserStore = create<User & UserActions>()(
         persist(
             (set) => ({
                 id: undefined,
-                fullname: "",
-                email: "",
-                image: "",
+                fullname: undefined,
+                email: undefined,
+                image: undefined,
                 setUser: (user) => set(user),
                 logout: () => {
                     set({
                         id: undefined,
-                        fullname: "",
-                        email: "",
-                        image: "",
+                        fullname: undefined,
+                        email: undefined,
+                        image: undefined,
                     })
                 },
             }),
