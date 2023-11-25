@@ -1,10 +1,9 @@
 import { Field, ObjectType } from "@nestjs/graphql";
 
-
 @ObjectType()
 export class User {
     @Field()
-    id?: number;
+    id: number;
 
     @Field()
     fullname: string;
@@ -14,5 +13,4 @@ export class User {
 
     @Field()
     image: string;
-
 }

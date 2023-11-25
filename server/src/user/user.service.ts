@@ -5,10 +5,12 @@ import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class UserService {
-    constructor(private prisma: PrismaService) {}
+    constructor(
+        private prisma: PrismaService
+    ){}
 
     async getUsers() {
-        return this.prisma.user.findMany({})
+        return await this.prisma.user.findMany();
     }
 
     async saveImage(image: {
