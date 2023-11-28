@@ -26,14 +26,14 @@ function AuthGuard ({ children }: { children: React.ReactNode }) {
                 setShow(true);
             }            
         };
-        if(show === true){
+        if(show){
             if(timeoutId === null){
                 setTimeoutId(setTimeout(() => {
                     setShow(false);
                 }, 4000))
             }
-    
-            if(hover === true){
+
+            if(hover){
                 clearTimeout(timeoutId!)
             }else if(timeoutId !== null){
                 setTimeoutId(setTimeout(() => {
