@@ -10,13 +10,14 @@ input LoginDto {
 type Mutation {
   login(loginInput: LoginDto!): User!
   logout: String!
-  refreshToken: String!
+  refreshTokens: String!
   register(registerInput: RegisterDto!): User!
-  updateImage(id: Float!, image: Upload!): String!
+  updateImage(id: String!, image: Upload!): String!
 }
 
 type Query {
   getUsers: [User!]!
+  showSession(userId: String!): String!
 }
 
 input RegisterDto {
@@ -31,6 +32,6 @@ scalar Upload
 type User {
   email: String!
   fullname: String!
-  id: Float!
+  id: String!
   image: String!
 }

@@ -47,6 +47,12 @@ const errorLink = onError(({ graphQLErrors, operation, forward }) => {
                         })
                         .catch((error) => observer.error(error))
                 })
+            }else if (err.extensions?.invalidSession){
+                
+                return new Observable((observer) => {
+                    window.dispatchEvent(new Event("Unauthorized"));
+                    observer.error(err)
+                })
             }
         }
     }

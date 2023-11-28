@@ -23,7 +23,7 @@ function Login () {
 
     useEffect(() => {
         if(user.id !== undefined) {
-            push(`/user/${user.id}`);
+            push(`/user/${user.fullname!.toLowerCase().replace(/\s+/g, '')}`);
         }
     })
 

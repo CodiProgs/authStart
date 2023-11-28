@@ -3,7 +3,7 @@ import { devtools, persist } from "zustand/middleware"
 
 
 export interface User {
-    id?: number
+    id?: string
     fullname?: string
     email?: string
     image?: string
