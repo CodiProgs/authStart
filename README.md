@@ -1,5 +1,12 @@
 # authStart
 
-cd server
-yarn install
+In /server:
+
+yarn install & 
 prisma generate
+
+
+In /client:
+
+yarn install &
+npx graphql-codegen
