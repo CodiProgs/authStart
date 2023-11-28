@@ -184,8 +184,6 @@ export class AuthService {
             res.cookie('accessToken', session.token, { httpOnly: true })
             return 'Success'
         }
-
-
     }
     
 
