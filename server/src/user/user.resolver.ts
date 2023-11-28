@@ -35,9 +35,9 @@ export class UserResolver {
     @Mutation(() => User)
     async register(
         @Args('registerInput') registerDto: RegisterDto,
-        @Context() context: {res: Response}
+        @Context() context: {res: Response, req: Request},
     ){
-        return await this.authService.register(registerDto, context.res)
+        return await this.authService.register(registerDto, context.res, context.req)
     }
 
     @Mutation(() => String)
@@ -57,11 +57,20 @@ export class UserResolver {
     @Mutation(() => String)
     async updateImage(
         @Args({ name: 'image', type: () => GraphQLUpload }) image: any,
-        @Args('id') id: number
+        @Args('id') id: string
     ){
         const imagePath = await this.userService.saveImage(image)
 
         await this.userService.updateImage(id, imagePath)
         return imagePath
+    }
+
+    @UseFilters(GraphQLErrorFilter)
+    @Query(() => String)
+    async showSession(
+        @Args('userId') userId: string,
+        @Context() context: {req: Request, res: Response}
+    ){
+        return await this.authService.showSession(userId, context.req, context.res)
     }
 }

@@ -36,7 +36,7 @@ export class UserService {
         return imagePath
     }
 
-    async updateImage(id: number, imagePath: string){
+    async updateImage(id: string, imagePath: string){
         return await this.prisma.user.update({
             where: { id },
             data: {

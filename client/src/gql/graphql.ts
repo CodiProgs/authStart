@@ -27,7 +27,7 @@ export type Mutation = {
   __typename?: 'Mutation';
   login: User;
   logout: Scalars['String']['output'];
-  refreshToken: Scalars['String']['output'];
+  refreshTokens: Scalars['String']['output'];
   register: User;
   updateImage: Scalars['String']['output'];
 };
@@ -44,13 +44,19 @@ export type MutationRegisterArgs = {
 
 
 export type MutationUpdateImageArgs = {
-  id: Scalars['Float']['input'];
+  id: Scalars['String']['input'];
   image: Scalars['Upload']['input'];
 };
 
 export type Query = {
   __typename?: 'Query';
   getUsers: Array<User>;
+  showSession: Scalars['String']['output'];
+};
+
+
+export type QueryShowSessionArgs = {
+  userId: Scalars['String']['input'];
 };
 
 export type RegisterDto = {
@@ -63,7 +69,7 @@ export type User = {
   __typename?: 'User';
   email: Scalars['String']['output'];
   fullname: Scalars['String']['output'];
-  id: Scalars['Float']['output'];
+  id: Scalars['String']['output'];
   image: Scalars['String']['output'];
 };
 
@@ -73,7 +79,7 @@ export type LoginMutationVariables = Exact<{
 }>;
 
 
-export type LoginMutation = { __typename?: 'Mutation', login: { __typename?: 'User', id: number, fullname: string, email: string, image: string } };
+export type LoginMutation = { __typename?: 'Mutation', login: { __typename?: 'User', id: string, fullname: string, email: string, image: string } };
 
 export type RegisterMutationVariables = Exact<{
   fullname: Scalars['String']['input'];
@@ -82,10 +88,10 @@ export type RegisterMutationVariables = Exact<{
 }>;
 
 
-export type RegisterMutation = { __typename?: 'Mutation', register: { __typename?: 'User', id: number, fullname: string, email: string, image: string } };
+export type RegisterMutation = { __typename?: 'Mutation', register: { __typename?: 'User', id: string, fullname: string, email: string, image: string } };
 
 export type UpdateImageMutationVariables = Exact<{
-  id: Scalars['Float']['input'];
+  id: Scalars['String']['input'];
   image: Scalars['Upload']['input'];
 }>;
 
@@ -95,7 +101,14 @@ export type UpdateImageMutation = { __typename?: 'Mutation', updateImage: string
 export type GetUsersQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetUsersQuery = { __typename?: 'Query', getUsers: Array<{ __typename?: 'User', id: number, fullname: string, email: string, image: string }> };
+export type GetUsersQuery = { __typename?: 'Query', getUsers: Array<{ __typename?: 'User', id: string, fullname: string, email: string, image: string }> };
+
+export type ShowSessionQueryVariables = Exact<{
+  userId: Scalars['String']['input'];
+}>;
+
+
+export type ShowSessionQuery = { __typename?: 'Query', showSession: string };
 
 
 export const LoginDocument = gql`
@@ -176,7 +189,7 @@ export type RegisterMutationHookResult = ReturnType<typeof useRegisterMutation>;
 export type RegisterMutationResult = Apollo.MutationResult<RegisterMutation>;
 export type RegisterMutationOptions = Apollo.BaseMutationOptions<RegisterMutation, RegisterMutationVariables>;
 export const UpdateImageDocument = gql`
-    mutation UpdateImage($id: Float!, $image: Upload!) {
+    mutation UpdateImage($id: String!, $image: Upload!) {
   updateImage(id: $id, image: $image)
 }
     `;
@@ -249,3 +262,41 @@ export type GetUsersQueryHookResult = ReturnType<typeof useGetUsersQuery>;
 export type GetUsersLazyQueryHookResult = ReturnType<typeof useGetUsersLazyQuery>;
 export type GetUsersSuspenseQueryHookResult = ReturnType<typeof useGetUsersSuspenseQuery>;
 export type GetUsersQueryResult = Apollo.QueryResult<GetUsersQuery, GetUsersQueryVariables>;
+export const ShowSessionDocument = gql`
+    query ShowSession($userId: String!) {
+  showSession(userId: $userId)
+}
+    `;
+
+/**
+ * __useShowSessionQuery__
+ *
+ * To run a query within a React component, call `useShowSessionQuery` and pass it any options that fit your needs.
+ * When your component renders, `useShowSessionQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useShowSessionQuery({
+ *   variables: {
+ *      userId: // value for 'userId'
+ *   },
+ * });
+ */
+export function useShowSessionQuery(baseOptions: Apollo.QueryHookOptions<ShowSessionQuery, ShowSessionQueryVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<ShowSessionQuery, ShowSessionQueryVariables>(ShowSessionDocument, options);
+      }
+export function useShowSessionLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<ShowSessionQuery, ShowSessionQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<ShowSessionQuery, ShowSessionQueryVariables>(ShowSessionDocument, options);
+        }
+export function useShowSessionSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<ShowSessionQuery, ShowSessionQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useSuspenseQuery<ShowSessionQuery, ShowSessionQueryVariables>(ShowSessionDocument, options);
+        }
+export type ShowSessionQueryHookResult = ReturnType<typeof useShowSessionQuery>;
+export type ShowSessionLazyQueryHookResult = ReturnType<typeof useShowSessionLazyQuery>;
+export type ShowSessionSuspenseQueryHookResult = ReturnType<typeof useShowSessionSuspenseQuery>;
+export type ShowSessionQueryResult = Apollo.QueryResult<ShowSessionQuery, ShowSessionQueryVariables>;
