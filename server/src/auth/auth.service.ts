@@ -13,178 +13,183 @@ export class AuthService {
         private prisma: PrismaService,
         private readonly jwtService: JwtService,
         private readonly config: ConfigService,
-    ){}
+    ) { }
 
-    async login(loginDto: LoginDto, res: Response, req: Request){
+    async login(loginDto: LoginDto, res: Response, req: Request) {
         const user = await this.validateUser(loginDto.email, loginDto.password)
-        if(!user) throw new BadRequestException({invalidCredentials: 'Invalid credentials'})
+        if (!user) throw new BadRequestException({ invalidCredentials: 'Invalid credentials' })
         return await this.createTokens(user, res, req)
     }
 
-    async register(registerDto: RegisterDto, res: Response, req: Request){
+    async register(registerDto: RegisterDto, res: Response, req: Request) {
         const existingUser = await this.prisma.user.findUnique({
             where: {
                 email: registerDto.email
             }
         })
-        if(existingUser) throw new BadRequestException({email: 'Email already taken'})
+        if (existingUser) throw new BadRequestException({ email: 'Email already taken' })
 
         const hashedPassword = await bcrypt.hash(registerDto.password, 10)
-        const user = await this.prisma.user.create({
+        let user = await this.prisma.user.create({
             data: {
                 email: registerDto.email,
                 password: hashedPassword,
-                fullname: registerDto.fullname
+                name: registerDto.name,
+                surname: registerDto.surname,
+                role: ['USER'],
+            }
+        })
+
+        user = await this.prisma.user.update({
+            where: {
+                id: user.id
+            },
+            data: {
+                username: user.id.toString()
             }
         })
 
         return await this.createTokens(user, res, req)
     }
 
-    async logout(res: Response){
-        res.clearCookie('accessToken')
-        res.clearCookie('refreshToken')
-        return 'Success logged out'
-    }
-
-    private async validateUser(email: string, password: string){
+    private async validateUser(email: string, password: string) {
         const user = await this.prisma.user.findUnique({
             where: {
                 email
             }
         })
-        if(user && await bcrypt.compare(password, user.password)){
+        if (user && await bcrypt.compare(password, user.password)) {
             return user
         }
         return null
     }
 
-    private async createTokens(user: User, res: Response, req: Request){
-        const payload = { sub: user.id, username: user.fullname };
-        const accessToken = this.jwtService.sign(
-            {...payload},
-            {
-                secret: this.config.get<string>('ACCESS_TOKEN_SECRET'),
-                expiresIn: '60sec' //15000
+    async logout(res: Response) {
+        res.clearCookie('accessToken')
+        res.clearCookie('refreshToken')
+        return 'Success logged out'
+    }
+
+    private async createTokens(user: User, res: Response, req: Request) {
+        const payload = { sub: user.id, username: user.name + ' ' + user.surname, role: user.role };
+
+        const refreshTokenFromDb = await this.prisma.refreshToken.findFirst({
+            where: {
+                userAgent: req.headers['user-agent'],
+                userId: user.id
             }
-        )
-        const refreshToken = this.jwtService.sign(
-            payload, {
+        })
+        if (refreshTokenFromDb) {
+            const accessToken = this.jwtService.sign(
+                { ...payload },
+                {
+                    secret: this.config.get<string>('ACCESS_TOKEN_SECRET'),
+                    expiresIn: '10m'
+                }
+            )
+            const refreshToken = this.jwtService.sign(
+                payload, {
                 secret: this.config.get<string>('REFRESH_TOKEN_SECRET'),
                 expiresIn: '7d'
             }
-        )
-
-        const oldRefreshToken = await this.prisma.session.findUnique({
-            where: {
-                userId: user.id,
-                userAgent: req.headers['user-agent']
-            }
-        })
-        if(oldRefreshToken){
-            await this.prisma.session.delete({
+            )
+            await this.prisma.refreshToken.update({
                 where: {
-                    id: oldRefreshToken.id
+                    id: refreshTokenFromDb.id
+                },
+                data: {
+                    token: refreshToken
                 }
             })
-        }
-
-        const session = await this.prisma.session.create({
-            data: {
-                userId: user.id,
-                token: refreshToken,
-                userAgent: req.headers['user-agent'],
+            res.cookie('refreshToken', refreshToken, { httpOnly: true, domain: 'localhost', path: '/', maxAge: 7 * 24 * 60 * 60 * 1000 })
+            res.cookie('accessToken', accessToken, { httpOnly: true, domain: 'localhost', path: '/', maxAge: 10 * 60 * 1000 })
+            return user
+        } else {
+            const accessToken = this.jwtService.sign(
+                { ...payload },
+                {
+                    secret: this.config.get<string>('ACCESS_TOKEN_SECRET'),
+                    expiresIn: '10m'
+                }
+            )
+            const refreshToken = this.jwtService.sign(
+                payload, {
+                secret: this.config.get<string>('REFRESH_TOKEN_SECRET'),
+                expiresIn: '7d'
             }
-        })
-
-        res.cookie('sessionUuid', session.id, { httpOnly: true })
-        res.cookie('accessToken', accessToken, { httpOnly: true })
-        return user
+            )
+            await this.prisma.refreshToken.create({
+                data: {
+                    token: refreshToken,
+                    ip: req.ip,
+                    device: req.headers['sec-ch-ua-platform'].toString(),
+                    userId: user.id,
+                    userAgent: req.headers['user-agent']
+                }
+            })
+            res.cookie('refreshToken', refreshToken, { httpOnly: true, domain: 'localhost', path: '/', maxAge: 7 * 24 * 60 * 60 * 1000 })
+            res.cookie('accessToken', accessToken, { httpOnly: true, domain: 'localhost', path: '/', maxAge: 10 * 60 * 1000 })
+            return user
+        }
     }
 
-    async refreshTokens(req: Request, res: Response){
-        
-        if(!req.cookies['sessionUuid']) throw new BadRequestException({invalidSession: 'Invalid session'})
-        const session = await this.prisma.session.findUnique({
-            where: {
-                id: req.cookies['sessionUuid']
-            }
-        })
-        
-        if(!session) throw new BadRequestException({invalidSession: 'Invalid session'})
-
-        const refreshToken = this.jwtService.verify(session.token, {
-            secret: this.config.get<string>('REFRESH_TOKEN_SECRET')
-        })
-        if(!refreshToken) throw new BadRequestException({invalidSession: 'Invalid session'})
+    async refreshTokens(req: Request, res: Response) {
+        const refreshToken = req.cookies['refreshToken']
+        if (!refreshToken) throw new BadRequestException({ invalidSession: 'Invalid session' })
+        const refreshTokenFromDb = await this.validateRefreshToken(refreshToken, req)
+        if (!refreshTokenFromDb) throw new BadRequestException({ invalidSession: 'Invalid session' })
         const user = await this.prisma.user.findUnique({
             where: {
-                id: refreshToken.sub
+                id: refreshTokenFromDb.userId
             }
         })
-        if(session.userId !== user.id || session.userAgent !== req.headers['user-agent']) throw new BadRequestException({invalidSession: 'Invalid session'})
-        
-        const accessExpiresIn = 60
-        const accessExpiration = Math.floor(Date.now() / 1000) + accessExpiresIn
+
+        const accessExpiration = Math.floor(Date.now() / 1000) + 10 * 60
         const accessToken = this.jwtService.sign(
-            {sub: user.id, username: user.fullname, exp: accessExpiration},
+            { sub: user.id, username: user.name + ' ' + user.surname, role: user.role, exp: accessExpiration },
             {
                 secret: this.config.get<string>('ACCESS_TOKEN_SECRET'),
             }
         )
+
         const refreshTokenExpiration = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60
         const newRefreshToken = this.jwtService.sign(
-            {sub: user.id, username: user.fullname, exp: refreshTokenExpiration},
+            { sub: user.id, username: user.name + ' ' + user.surname, role: user.role, exp: refreshTokenExpiration },
             {
                 secret: this.config.get<string>('REFRESH_TOKEN_SECRET'),
             }
         )
-        await this.prisma.session.update({
+
+        await this.prisma.refreshToken.update({
             where: {
-                id: session.id
+                id: refreshTokenFromDb.id
             },
             data: {
                 token: newRefreshToken
             }
         })
-        res.cookie('sessionUuid', session.id, { httpOnly: true })
-        res.cookie('accessToken', accessToken, { httpOnly: true })
+
+        res.cookie('refreshToken', newRefreshToken, { httpOnly: true, domain: 'localhost', path: '/', maxAge: 7 * 24 * 60 * 60 * 1000 })
+        res.cookie('accessToken', accessToken, { httpOnly: true, domain: 'localhost', path: '/', maxAge: 10 * 60 * 1000 })
 
         return accessToken
     }
 
-    async showSession(userId: string, req: Request, res: Response){
-        if(req.cookies['sessionUuid']) {
-            const session = await this.prisma.session.findUnique({
-                where: {
-                    id: req.cookies['sessionUuid']
-                }
-            })
-            if(session.userAgent === req.headers['user-agent'] && session.userId === userId) {
-                return 'Success'
-            }else{
-                await this.prisma.session.delete({
-                    where: {
-                        id: req.cookies['sessionUuid']
-                    }
-                })
-                res.clearCookie('sessionUuid')
-                res.clearCookie('accessToken')
-                throw new BadRequestException({invalidSession: 'Invalid session'})
+    async validateRefreshToken(token: string, req: Request) {
+        const refreshTokenFromDb = await this.prisma.refreshToken.findFirst({
+            where: {
+                token: token,
+                userAgent: req.headers['user-agent'],
+                ip: req.ip,
             }
-        }else{
-            const sessions = await this.prisma.session.findMany({
-                where: {
-                    userId
-                }
-            })
-            const session = sessions.find(session => session.userAgent === req.headers['user-agent'])
-            if(!session) return
-            res.cookie('sessionUuid', session.id, { httpOnly: true })
-            res.cookie('accessToken', session.token, { httpOnly: true })
-            return 'Success'
-        }
+        })
+        if (!refreshTokenFromDb) throw new BadRequestException({ invalidSession: 'Invalid session' })
+        const valid = this.jwtService.verify(token, {
+            secret: this.config.get<string>('REFRESH_TOKEN_SECRET')
+        })
+        if (!valid) throw new BadRequestException({ invalidSession: 'Invalid session' })
+        return refreshTokenFromDb
     }
-    
+
 
 }

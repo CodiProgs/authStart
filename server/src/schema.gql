@@ -8,30 +8,42 @@ input LoginDto {
 }
 
 type Mutation {
+  deleteUser: Boolean!
   login(loginInput: LoginDto!): User!
   logout: String!
   refreshTokens: String!
   register(registerInput: RegisterDto!): User!
-  updateImage(id: String!, image: Upload!): String!
+  setUsername(username: String!): User!
+  updateImage(image: Upload!): User!
 }
 
 type Query {
+  getUserProfile(username: String!): User!
   getUsers: [User!]!
-  showSession(userId: String!): String!
+  validateUsername(username: String!): Boolean!
 }
 
 input RegisterDto {
   email: String!
-  fullname: String!
+  name: String!
   password: String!
+  surname: String!
 }
 
 """The `Upload` scalar type represents a file upload."""
 scalar Upload
 
 type User {
+  avatar: String!
   email: String!
-  fullname: String!
-  id: String!
-  image: String!
+  id: Float!
+  name: String!
+  role: [UserRole!]!
+  surname: String!
+  username: String
+}
+
+enum UserRole {
+  ADMIN
+  USER
 }

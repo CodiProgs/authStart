@@ -11,20 +11,32 @@ datasource db {
 }
 
 model User {
-  id        String @id @default(uuid())
-  fullname  String
-  email     String   @unique
-  image     String   @default("/avatars/user.jpg")
+  id        Int            @id @default(autoincrement())
+  name      String
+  surname   String
+  username  String?        @unique
+  email     String         @unique
+  avatar    String         @default("/avatars/default.jpg")
   password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+  role      Role[]
+  tokens    RefreshToken[]
 }
 
-model Session {
-  id        String @id @default(uuid())
-  userId    String
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
   token     String
-  userAgent String  @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ip        String
+  device    String
+  userAgent String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+}
+
+enum Role {
+  USER
+  ADMIN
 }

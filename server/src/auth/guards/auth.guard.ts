@@ -5,18 +5,18 @@ import { Request } from "express";
 
 
 @Injectable()
-export class GraphqlAuthGuard implements CanActivate{
-    constructor (
+export class GraphqlAuthGuard implements CanActivate {
+    constructor(
         private jwtService: JwtService,
         private configService: ConfigService,
-    ) {}
+    ) { }
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const gqlCtx = context.getArgByIndex(2)
         const request: Request = gqlCtx.req
         const token = this.extractTokenFromCookies(request)
-        
-        if(!token) {
+
+        if (!token) {
             throw new UnauthorizedException()
         }
 
@@ -24,9 +24,9 @@ export class GraphqlAuthGuard implements CanActivate{
             const payload = await this.jwtService.verifyAsync(token, {
                 secret: this.configService.get<string>('ACCESS_TOKEN_SECRET'),
             })
-            
+
             request['user'] = payload
-        }catch (e) {
+        } catch (e) {
             throw new UnauthorizedException()
         }
         return true
