@@ -8,14 +8,16 @@ import { BadRequestException, UseFilters, UseGuards } from '@nestjs/common';
 import { GraphQLErrorFilter } from 'src/filter/exception.filter';
 import { GraphqlAuthGuard } from 'src/auth/guards/auth.guard';
 import * as GraphQLUpload from 'graphql-upload/GraphQLUpload.js';
+import { GraphqlRefreshGuard } from 'src/auth/guards/refresh.guard';
 
 @Resolver()
 export class UserResolver {
     constructor(
         private userService: UserService,
         private authService: AuthService
-    ) {}
+    ) { }
 
+    @UseFilters(GraphQLErrorFilter)
     @UseGuards(GraphqlAuthGuard)
     @Query(() => [User])
     async getUsers() {
@@ -26,8 +28,8 @@ export class UserResolver {
     @Mutation(() => User)
     async login(
         @Args('loginInput') loginDto: LoginDto,
-        @Context() context: {res: Response, req: Request},
-    ){
+        @Context() context: { res: Response, req: Request }
+    ) {
         return await this.authService.login(loginDto, context.res, context.req)
     }
 
@@ -35,42 +37,62 @@ export class UserResolver {
     @Mutation(() => User)
     async register(
         @Args('registerInput') registerDto: RegisterDto,
-        @Context() context: {res: Response, req: Request},
-    ){
+        @Context() context: { res: Response, req: Request },
+    ) {
         return await this.authService.register(registerDto, context.res, context.req)
     }
 
     @Mutation(() => String)
-    async logout(@Context() context: {res: Response}) {
+    async logout(@Context() context: { res: Response }) {
         return await this.authService.logout(context.res)
     }
 
     @UseFilters(GraphQLErrorFilter)
     @Mutation(() => String)
     async refreshTokens(
-        @Context() context: {req: Request, res: Response}
-    ){
+        @Context() context: { req: Request, res: Response }
+    ) {
         return this.authService.refreshTokens(context.req, context.res)
     }
 
     @UseGuards(GraphqlAuthGuard)
-    @Mutation(() => String)
+    @Mutation(() => User)
     async updateImage(
         @Args({ name: 'image', type: () => GraphQLUpload }) image: any,
-        @Args('id') id: string
-    ){
-        const imagePath = await this.userService.saveImage(image)
+        @Context() context: { req: Request }
+    ) {
+        return await this.userService.updateImage(context.req.user.sub, image)
+    }
 
-        await this.userService.updateImage(id, imagePath)
-        return imagePath
+    @Query(() => User)
+    async getUserProfile(
+        @Args({ name: 'username' }) username: string,
+    ) {
+        return await this.userService.getUserProfile(username)
+    }
+
+    @UseGuards(GraphqlAuthGuard)
+    @Mutation(() => User)
+    async setUsername(
+        @Context() context: { req: Request },
+        @Args({ name: 'username' }) username: string
+    ) {
+        return await this.userService.setUsername(context.req.user.sub, username)
+    }
+
+    @Query(() => Boolean)
+    async validateUsername(
+        @Args({ name: 'username' }) username: string
+    ) {
+        return await this.userService.validateUsername(username)
     }
 
     @UseFilters(GraphQLErrorFilter)
-    @Query(() => String)
-    async showSession(
-        @Args('userId') userId: string,
-        @Context() context: {req: Request, res: Response}
-    ){
-        return await this.authService.showSession(userId, context.req, context.res)
+    @UseGuards(GraphqlAuthGuard, GraphqlRefreshGuard)
+    @Mutation(() => Boolean)
+    async deleteUser(
+        @Context() context: { req: Request, res: Response }
+    ) {
+        return await this.userService.deleteUser(context.req.user.sub, context.res)
     }
 }

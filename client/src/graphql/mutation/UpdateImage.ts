@@ -6,8 +6,9 @@ export const UPDATE_IMAGE = gql`
         $image: Upload!
     ){
         updateImage(
-            id: $id
             image: $image
-        )
+        ){
+            avatar
+        }
     }
 `

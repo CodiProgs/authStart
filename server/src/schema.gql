@@ -2,36 +2,62 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
 input LoginDto {
   email: String!
   password: String!
 }
 
 type Mutation {
+  deleteRefreshToken(id: Float!): Boolean!
+  deleteUser: Boolean!
   login(loginInput: LoginDto!): User!
   logout: String!
   refreshTokens: String!
   register(registerInput: RegisterDto!): User!
-  updateImage(id: String!, image: Upload!): String!
+  setUsername(username: String!): User!
+  updateImage(image: Upload!): User!
 }
 
 type Query {
+  getRefreshTokens: [RefreshToken!]!
+  getUserProfile(username: String!): User!
   getUsers: [User!]!
-  showSession(userId: String!): String!
+  validateUsername(username: String!): Boolean!
+}
+
+type RefreshToken {
+  createdAt: DateTime!
+  device: String!
+  id: Float!
+  ip: String!
 }
 
 input RegisterDto {
   email: String!
-  fullname: String!
+  name: String!
   password: String!
+  surname: String!
 }
 
 """The `Upload` scalar type represents a file upload."""
 scalar Upload
 
 type User {
+  avatar: String!
   email: String!
-  fullname: String!
-  id: String!
-  image: String!
+  id: Float!
+  name: String!
+  role: [UserRole!]!
+  surname: String!
+  username: String
+}
+
+enum UserRole {
+  ADMIN
+  USER
 }

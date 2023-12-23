@@ -12,9 +12,11 @@ export const LOGIN = gql`
             }
         ){
             id
-            fullname
+            username
+            name
+            surname
             email
-            image
+            avatar
         }
     }
 `

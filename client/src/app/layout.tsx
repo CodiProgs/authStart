@@ -1,10 +1,14 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import Layout from '@/layout/Layout'
-import AuthGuard from '@/layout/AuthGuard'
+import { loadErrorMessages, loadDevMessages } from "@apollo/client/dev";
+import Layout from '@/layouts/Layout';
+import AuthGuard from '@/layouts/AuthGuard';
 
 const inter = Inter({ subsets: ['latin'] })
+
+loadDevMessages();
+loadErrorMessages();
 
 export const metadata: Metadata = {
   title: 'Create Next App',
