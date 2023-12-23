@@ -3,10 +3,12 @@ import { devtools, persist } from "zustand/middleware"
 
 
 export interface User {
-    id?: string
-    fullname?: string
+    id?: number
+    username?: string
+    name?: string
+    surname?: string
     email?: string
-    image?: string
+    avatar?: string
 }
 
 export interface UserActions {
@@ -19,16 +21,20 @@ export const useUserStore = create<User & UserActions>()(
         persist(
             (set) => ({
                 id: undefined,
-                fullname: undefined,
+                username: undefined,
                 email: undefined,
-                image: undefined,
+                avatar: undefined,
+                name: undefined,
+                surname: undefined,
                 setUser: (user) => set(user),
                 logout: () => {
                     set({
                         id: undefined,
-                        fullname: undefined,
+                        username: undefined,
                         email: undefined,
-                        image: undefined,
+                        avatar: undefined,
+                        name: undefined,
+                        surname: undefined
                     })
                 },
             }),

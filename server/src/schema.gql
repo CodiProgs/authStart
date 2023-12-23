@@ -2,12 +2,18 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
 input LoginDto {
   email: String!
   password: String!
 }
 
 type Mutation {
+  deleteRefreshToken(id: Float!): Boolean!
   deleteUser: Boolean!
   login(loginInput: LoginDto!): User!
   logout: String!
@@ -18,9 +24,17 @@ type Mutation {
 }
 
 type Query {
+  getRefreshTokens: [RefreshToken!]!
   getUserProfile(username: String!): User!
   getUsers: [User!]!
   validateUsername(username: String!): Boolean!
+}
+
+type RefreshToken {
+  createdAt: DateTime!
+  device: String!
+  id: Float!
+  ip: String!
 }
 
 input RegisterDto {
